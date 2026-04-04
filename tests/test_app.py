@@ -6,8 +6,14 @@ from app import create_app
 def client():
     app = create_app()
     app.config["TESTING"] = True
-    with app.test_client() as client:
-        yield client
+    with app.app_context():
+        from app.database import db
+        from app.models.url import URL
+
+        db.create_tables([URL])
+        with app.test_client() as client:
+            yield client
+        db.drop_tables([URL])
 
 
 def test_health_returns_200(client):
