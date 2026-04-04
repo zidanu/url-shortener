@@ -91,6 +91,59 @@ uv run pytest tests/ -v
 uv run pytest tests/ --cov=app --cov-report=term-missing  # with coverage
 ```
 
+## Running with Docker
+
+### Start
+```bash
+docker compose up --build
+```
+
+### Run in background
+```bash
+docker compose up -d
+```
+
+### Stop
+```bash
+docker compose down
+```
+
+### Verify
+```bash
+curl http://localhost:5000/health
+# → {"status": "ok"}
+```
+
+## Chaos Engineering (Reliability Gold Demo)
+
+The app is configured with `restart: always` in docker-compose.yml. To demonstrate automatic recovery:
+```bash
+# 1. Start containers
+docker compose up -d
+
+# 2. Get the host PID of the app container
+docker inspect url-shortener-app-1 --format '{{.State.Pid}}'
+
+# 3. Kill it (simulates a crash)
+sudo kill -9 <PID>
+
+# 4. Watch it restart automatically
+watch -n 1 docker ps
+
+# 5. Confirm it's back
+curl http://localhost:5000/health
+```
+
+## Technical Decisions
+
+- **Flask** — lightweight, easy to test, good for APIs
+- **Peewee** — simple ORM with minimal boilerplate  
+- **PostgreSQL** — reliable, production-grade database
+- **uv** — fast dependency management, handles Python versioning
+- **Docker + restart: always** — ensures the service recovers automatically from crashes without manual intervention
+- **pytest + GitHub Actions** — every push is tested automatically, broken code never reaches main
+
+
 ## Failure Modes
 
 | Failure | Symptom | Resolution |
