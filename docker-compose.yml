@@ -48,6 +48,20 @@ services:
     image: redis:7-alpine
     restart: always
 
+  seeder:
+    build: .
+    environment:
+      DATABASE_NAME: hackathon_db
+      DATABASE_HOST: db
+      DATABASE_PORT: 5432
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: postgres
+    depends_on:
+      db:
+        condition: service_healthy
+    command: uv run python seed.py
+    restart: "no"
+
   db:
     image: postgres:15
     environment:
