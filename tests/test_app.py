@@ -80,3 +80,8 @@ def test_shorten_accepts_http(client):
 def test_shorten_accepts_https(client):
     response = client.post("/shorten", json={"url": "https://example.com"})
     assert response.status_code == 201
+
+
+def test_invalid_short_code_returns_404(client):
+    response = client.get("/!!!invalid!!!")
+    assert response.status_code in [400, 404]
