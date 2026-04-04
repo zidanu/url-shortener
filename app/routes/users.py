@@ -136,3 +136,13 @@ def bulk_import_users():
             continue
 
     return jsonify({"imported": imported}), 201
+
+
+@users_bp.route("/users/<int:user_id>", methods=["DELETE"])
+def delete_user(user_id):
+    try:
+        u = User.get_by_id(user_id)
+        u.delete_instance()
+        return jsonify({"message": "User deleted"}), 200
+    except User.DoesNotExist:
+        return jsonify({"error": "User not found"}), 404

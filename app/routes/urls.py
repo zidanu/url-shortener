@@ -29,10 +29,24 @@ def url_to_dict(u):
 @urls_bp.route("/urls", methods=["GET"])
 def list_urls():
     user_id = request.args.get("user_id", type=int)
+    is_active = request.args.get("is_active")
     query = URL.select().order_by(URL.id)
     if user_id:
         query = query.where(URL.user_id == str(user_id))
+    if is_active is not None:
+        active_bool = is_active.lower() == "true"
+        query = query.where(URL.is_active == active_bool)
     return jsonify([url_to_dict(u) for u in query]), 200
+
+
+@urls_bp.route("/urls/<int:url_id>", methods=["DELETE"])
+def delete_url(url_id):
+    try:
+        u = URL.get_by_id(url_id)
+        u.delete_instance()
+        return jsonify({"message": "URL deleted"}), 200
+    except URL.DoesNotExist:
+        return jsonify({"error": "URL not found"}), 404
 
 
 @urls_bp.route("/urls/<int:url_id>", methods=["GET"])
