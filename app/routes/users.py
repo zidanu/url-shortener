@@ -62,6 +62,27 @@ def create_user():
     if "@" not in email:
         return jsonify({"error": "Invalid email"}), 400
 
+    # Check if username already exists
+    try:
+        existing = User.get(User.username == username)
+        # If same email too, just return them
+        if existing.email == email:
+            return jsonify(
+                {
+                    "id": existing.id,
+                    "username": existing.username,
+                    "email": existing.email,
+                    "created_at": existing.created_at.isoformat()
+                    if existing.created_at
+                    else None,
+                }
+            ), 201
+        else:
+            # Username taken by someone else
+            return jsonify({"error": "Username already exists"}), 400
+    except User.DoesNotExist:
+        pass
+
     # If user already exists with same username AND email, return them
     try:
         existing = User.get((User.username == username) & (User.email == email))
