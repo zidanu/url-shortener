@@ -59,7 +59,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    command: uv run python seed.py
+    command: uv run python seed.py --fresh
     restart: "no"
 
   db:

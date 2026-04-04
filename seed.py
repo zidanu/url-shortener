@@ -1,5 +1,6 @@
 import csv
 import os
+import sys
 from app import create_app
 from app.database import db
 from app.models.user import User
@@ -7,6 +8,18 @@ from app.models.url import URL
 from app.models.event import Event
 
 app = create_app()
+
+
+def fresh_seed():
+    print("Dropping and recreating tables...")
+    with app.app_context():
+        db.drop_tables([Event, URL, User])
+        db.create_tables([User, URL, Event])
+        seed_users("users.csv")
+        seed_urls("urls.csv")
+        seed_events("events.csv")
+        reset_sequences()
+    print("Fresh seed complete!")
 
 
 def seed_users(filepath):
@@ -79,9 +92,13 @@ def reset_sequences():
 
 
 if __name__ == "__main__":
-    with app.app_context():
-        seed_users("users.csv")
-        seed_urls("urls.csv")
-        seed_events("events.csv")
-        reset_sequences()
-    print("Seeding complete!")
+    fresh = "--fresh" in sys.argv
+    if fresh:
+        fresh_seed()
+    else:
+        with app.app_context():
+            seed_users("users.csv")
+            seed_urls("urls.csv")
+            seed_events("events.csv")
+            reset_sequences()
+        print("Seeding complete!")
