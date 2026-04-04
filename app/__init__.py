@@ -1,6 +1,5 @@
 from dotenv import load_dotenv
 from flask import Flask, jsonify
-
 from app.database import init_db
 from app.routes import register_routes
 
@@ -9,12 +8,14 @@ def create_app():
     load_dotenv()
     app = Flask(__name__)
     init_db(app)
-    from app import models  # noqa: F401 - registers models with Peewee
+    from app import models  # noqa: F401
     from app.database import db
+    from app.models.user import User
     from app.models.url import URL
+    from app.models.event import Event
 
     with app.app_context():
-        db.create_tables([URL])
+        db.create_tables([User, URL, Event])
     register_routes(app)
 
     @app.route("/health")

@@ -85,3 +85,25 @@ def test_shorten_accepts_https(client):
 def test_invalid_short_code_returns_404(client):
     response = client.get("/!!!invalid!!!")
     assert response.status_code in [400, 404]
+
+
+def test_inactive_url_returns_410(client):
+    # Create a URL then deactivate it
+    from app.models.url import URL
+
+    response = client.post("/shorten", json={"url": "https://google.com"})
+    short_code = response.get_json()["short_code"]
+
+    # Deactivate it directly in DB
+    URL.update(is_active=False).where(URL.short_code == short_code).execute()
+
+    # Try to use it
+    response = client.get(f"/{short_code}")
+    assert response.status_code == 410
+
+
+def test_active_url_redirects(client):
+    response = client.post("/shorten", json={"url": "https://google.com"})
+    short_code = response.get_json()["short_code"]
+    response = client.get(f"/{short_code}")
+    assert response.status_code == 302

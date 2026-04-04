@@ -3,7 +3,9 @@ import random
 import string
 import redis
 import os
+import datetime
 from app.models.url import URL
+from app.models.event import Event
 
 url_bp = Blueprint("url", __name__)
 
@@ -31,6 +33,7 @@ def shorten():
         return jsonify({"error": "Missing 'url' field"}), 400
 
     original_url = data["url"]
+    title = data.get("title", None)
 
     if not original_url or not original_url.strip():
         return jsonify({"error": "URL cannot be empty"}), 400
@@ -44,16 +47,39 @@ def shorten():
     while URL.select().where(URL.short_code == short_code).exists():
         short_code = generate_code()
 
-    URL.create(original_url=original_url, short_code=short_code)
+    url = URL.create(
+        original_url=original_url,
+        short_code=short_code,
+        title=title,
+        is_active=True,
+        updated_at=datetime.datetime.now(),
+    )
 
-    # Cache the new short code immediately
+    # Log event
+    try:
+        Event.create(
+            url=url,
+            event_type="created",
+            details=f'{{"short_code":"{short_code}","original_url":"{original_url}"}}',
+        )
+    except Exception:
+        pass
+
+    # Cache it
     try:
         r = get_redis()
-        r.setex(short_code, 3600, original_url)  # cache for 1 hour
+        r.setex(short_code, 3600, original_url)
     except Exception:
-        pass  # if Redis is down, still work without cache
+        pass
 
-    return jsonify({"short_code": short_code, "short_url": f"/{short_code}"}), 201
+    return jsonify(
+        {
+            "short_code": short_code,
+            "short_url": f"/{short_code}",
+            "title": title,
+            "is_active": True,
+        }
+    ), 201
 
 
 @url_bp.route("/<short_code>", methods=["GET"])
@@ -61,21 +87,45 @@ def redirect_url(short_code):
     # Check cache first
     try:
         r = get_redis()
-        cached_url = r.get(short_code)
-        if cached_url:
-            return redirect(cached_url)
+        cached = r.get(f"url:{short_code}")
+        if cached:
+            return redirect(cached)
+        inactive = r.get(f"inactive:{short_code}")
+        if inactive:
+            return jsonify({"error": "Short URL is inactive"}), 410
     except Exception:
-        pass  # if Redis is down, fall through to DB
+        pass
 
     # Fall back to DB
     try:
         url = URL.get(URL.short_code == short_code)
-        # Cache it for next time
+        if not url.is_active:
+            try:
+                r = get_redis()
+                r.setex(f"inactive:{short_code}", 3600, "1")
+            except Exception:
+                pass
+            return jsonify({"error": "Short URL is inactive"}), 410
+
+        # Cache and redirect
         try:
             r = get_redis()
-            r.setex(short_code, 3600, url.original_url)
+            r.setex(f"url:{short_code}", 3600, url.original_url)
         except Exception:
             pass
+
+        # Log click event
+        try:
+            Event.create(
+                url=url,
+                event_type="clicked",
+                details=f'{{"short_code":"{short_code}"}}',
+            )
+            url.updated_at = datetime.datetime.now()
+            url.save()
+        except Exception:
+            pass
+
         return redirect(url.original_url)
     except URL.DoesNotExist:
         return jsonify({"error": "Short code not found"}), 404
