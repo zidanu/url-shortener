@@ -13,6 +13,8 @@ build/
 # Environment variables
 .env
 
+.coverage
+
 # uv
 uv.lock
 
