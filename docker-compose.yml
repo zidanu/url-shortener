@@ -7,9 +7,13 @@ services:
       DATABASE_PORT: 5432
       DATABASE_USER: postgres
       DATABASE_PASSWORD: postgres
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
     restart: always
 
   app2:
@@ -20,13 +24,13 @@ services:
       DATABASE_PORT: 5432
       DATABASE_USER: postgres
       DATABASE_PASSWORD: postgres
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     depends_on:
       db:
         condition: service_healthy
-    restart: always
-
-  redis:
-    image: redis:7-alpine
+      redis:
+        condition: service_started
     restart: always
 
   nginx:
@@ -38,6 +42,10 @@ services:
     depends_on:
       - app1
       - app2
+    restart: always
+
+  redis:
+    image: redis:7-alpine
     restart: always
 
   db:

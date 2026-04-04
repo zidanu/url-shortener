@@ -2,7 +2,7 @@ import http from 'k6/http';
 import { check } from 'k6';
 
 export const options = {
-	vus: 200,         // 200 concurrent users
+	vus: 500,         // 500 concurrent users
 	duration: '30s',
 };
 

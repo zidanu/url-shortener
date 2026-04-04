@@ -1,9 +1,19 @@
 from flask import Blueprint, jsonify, request, redirect
 import random
 import string
+import redis
+import os
 from app.models.url import URL
 
 url_bp = Blueprint("url", __name__)
+
+
+def get_redis():
+    return redis.Redis(
+        host=os.getenv("REDIS_HOST", "localhost"),
+        port=int(os.getenv("REDIS_PORT", 6379)),
+        decode_responses=True,
+    )
 
 
 def generate_code(length=6):
@@ -30,19 +40,42 @@ def shorten():
             {"error": "Invalid URL, must start with http:// or https://"}
         ), 400
 
-    # Generate a unique short code
     short_code = generate_code()
     while URL.select().where(URL.short_code == short_code).exists():
         short_code = generate_code()
 
     URL.create(original_url=original_url, short_code=short_code)
+
+    # Cache the new short code immediately
+    try:
+        r = get_redis()
+        r.setex(short_code, 3600, original_url)  # cache for 1 hour
+    except Exception:
+        pass  # if Redis is down, still work without cache
+
     return jsonify({"short_code": short_code, "short_url": f"/{short_code}"}), 201
 
 
 @url_bp.route("/<short_code>", methods=["GET"])
 def redirect_url(short_code):
+    # Check cache first
+    try:
+        r = get_redis()
+        cached_url = r.get(short_code)
+        if cached_url:
+            return redirect(cached_url)
+    except Exception:
+        pass  # if Redis is down, fall through to DB
+
+    # Fall back to DB
     try:
         url = URL.get(URL.short_code == short_code)
+        # Cache it for next time
+        try:
+            r = get_redis()
+            r.setex(short_code, 3600, url.original_url)
+        except Exception:
+            pass
         return redirect(url.original_url)
     except URL.DoesNotExist:
         return jsonify({"error": "Short code not found"}), 404
