@@ -55,3 +55,28 @@ def test_redirect_works(client):
 
     response = client.get(f"/{short_code}")
     assert response.status_code == 302
+
+
+def test_shorten_rejects_empty_url(client):
+    response = client.post("/shorten", json={"url": ""})
+    assert response.status_code == 400
+
+
+def test_shorten_rejects_invalid_url(client):
+    response = client.post("/shorten", json={"url": "not-a-url"})
+    assert response.status_code == 400
+
+
+def test_shorten_rejects_no_body(client):
+    response = client.post("/shorten")
+    assert response.status_code in [400, 415]
+
+
+def test_shorten_accepts_http(client):
+    response = client.post("/shorten", json={"url": "http://example.com"})
+    assert response.status_code == 201
+
+
+def test_shorten_accepts_https(client):
+    response = client.post("/shorten", json={"url": "https://example.com"})
+    assert response.status_code == 201
