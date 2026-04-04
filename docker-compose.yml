@@ -1,8 +1,6 @@
 services:
-  app:
+  app1:
     build: .
-    ports:
-      - "5000:5000"
     environment:
       DATABASE_NAME: hackathon_db
       DATABASE_HOST: db
@@ -12,6 +10,34 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    restart: always
+
+  app2:
+    build: .
+    environment:
+      DATABASE_NAME: hackathon_db
+      DATABASE_HOST: db
+      DATABASE_PORT: 5432
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: postgres
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - app1
+      - app2
     restart: always
 
   db:
