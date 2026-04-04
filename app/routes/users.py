@@ -50,7 +50,6 @@ def create_user():
     username = data.get("username")
     email = data.get("email")
 
-    # Hint 5: reject wrong types
     if username is None or email is None:
         return jsonify({"error": "Missing username or email"}), 400
 
@@ -60,9 +59,24 @@ def create_user():
     if not username.strip() or not email.strip():
         return jsonify({"error": "Missing username or email"}), 400
 
-    # Hint 3: reject malformed data
     if "@" not in email:
         return jsonify({"error": "Invalid email"}), 400
+
+    # If user already exists with same username AND email, return them
+    try:
+        existing = User.get((User.username == username) & (User.email == email))
+        return jsonify(
+            {
+                "id": existing.id,
+                "username": existing.username,
+                "email": existing.email,
+                "created_at": existing.created_at.isoformat()
+                if existing.created_at
+                else None,
+            }
+        ), 201
+    except User.DoesNotExist:
+        pass
 
     try:
         u = User.create(
