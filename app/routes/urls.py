@@ -1,0 +1,127 @@
+from flask import Blueprint, jsonify, request
+import datetime
+import random
+import string
+from app.models.url import URL
+from app.models.user import User
+from app.models.event import Event
+
+urls_bp = Blueprint("urls", __name__)
+
+
+def generate_code(length=6):
+    return "".join(random.choices(string.ascii_letters + string.digits, k=length))
+
+
+def url_to_dict(u):
+    return {
+        "id": u.id,
+        "user_id": int(u.user_id) if u.user_id else None,
+        "short_code": u.short_code,
+        "original_url": u.original_url,
+        "title": u.title,
+        "is_active": u.is_active,
+        "created_at": u.created_at.isoformat() if u.created_at else None,
+        "updated_at": u.updated_at.isoformat() if u.updated_at else None,
+    }
+
+
+@urls_bp.route("/urls", methods=["GET"])
+def list_urls():
+    user_id = request.args.get("user_id", type=int)
+    query = URL.select().order_by(URL.id)
+    if user_id:
+        query = query.where(URL.user_id == str(user_id))
+    return jsonify([url_to_dict(u) for u in query]), 200
+
+
+@urls_bp.route("/urls/<int:url_id>", methods=["GET"])
+def get_url(url_id):
+    try:
+        u = URL.get_by_id(url_id)
+        return jsonify(url_to_dict(u)), 200
+    except URL.DoesNotExist:
+        return jsonify({"error": "URL not found"}), 404
+
+
+@urls_bp.route("/urls", methods=["POST"])
+def create_url():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Missing request body"}), 400
+
+    original_url = data.get("original_url")
+    user_id = data.get("user_id")
+    title = data.get("title")
+
+    if not original_url:
+        return jsonify({"error": "Missing original_url"}), 400
+
+    if not isinstance(original_url, str):
+        return jsonify({"error": "Invalid data type for original_url"}), 400
+
+    if not original_url.startswith("http://") and not original_url.startswith(
+        "https://"
+    ):
+        return jsonify({"error": "Invalid URL"}), 400
+
+    # Hint 3: validate user exists if user_id provided
+    if user_id is not None:
+        try:
+            User.get_by_id(user_id)
+        except User.DoesNotExist:
+            return jsonify({"error": "User not found"}), 404
+
+    short_code = generate_code()
+    while URL.select().where(URL.short_code == short_code).exists():
+        short_code = generate_code()
+
+    now = datetime.datetime.now()
+    u = URL.create(
+        user_id=str(user_id) if user_id else None,
+        short_code=short_code,
+        original_url=original_url,
+        title=title,
+        is_active=True,
+        created_at=now,
+        updated_at=now,
+    )
+
+    # Log created event
+    try:
+        Event.create(
+            url_id=u.id,
+            user_id=user_id,
+            event_type="created",
+            timestamp=now,
+            details=f'{{"short_code":"{short_code}","original_url":"{original_url}"}}',
+        )
+    except Exception:
+        pass
+
+    return jsonify(url_to_dict(u)), 201
+
+
+@urls_bp.route("/urls/<int:url_id>", methods=["PUT"])
+def update_url(url_id):
+    try:
+        u = URL.get_by_id(url_id)
+    except URL.DoesNotExist:
+        return jsonify({"error": "URL not found"}), 404
+
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Missing request body"}), 400
+
+    if "title" in data:
+        u.title = data["title"]
+    if "is_active" in data:
+        if not isinstance(data["is_active"], bool):
+            return jsonify({"error": "is_active must be a boolean"}), 400
+        u.is_active = data["is_active"]
+    if "original_url" in data:
+        u.original_url = data["original_url"]
+
+    u.updated_at = datetime.datetime.now()
+    u.save()
+    return jsonify(url_to_dict(u)), 200

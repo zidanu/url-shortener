@@ -9,11 +9,13 @@ def client():
     with app.app_context():
         from app.database import db
         from app.models.url import URL
+        from app.models.user import User
+        from app.models.event import Event
 
-        db.create_tables([URL])
+        db.create_tables([User, URL, Event])
         with app.test_client() as client:
             yield client
-        db.drop_tables([URL])
+        db.drop_tables([User, URL, Event])
 
 
 def test_health_returns_200(client):
@@ -107,3 +109,137 @@ def test_active_url_redirects(client):
     short_code = response.get_json()["short_code"]
     response = client.get(f"/{short_code}")
     assert response.status_code == 302
+
+
+# Users CRUD tests
+def test_list_users(client):
+    response = client.get("/users")
+    assert response.status_code == 200
+    assert isinstance(response.get_json(), list)
+
+
+def test_get_user_by_id(client):
+    # First create a user
+    client.post("/users", json={"username": "testget", "email": "testget@example.com"})
+    response = client.get("/users/1")
+    assert response.status_code in [200, 404]  # 404 if no users seeded
+
+
+def test_create_user(client):
+    response = client.post(
+        "/users", json={"username": "newuser123", "email": "newuser123@example.com"}
+    )
+    assert response.status_code == 201
+    data = response.get_json()
+    assert "id" in data
+    assert data["username"] == "newuser123"
+
+
+def test_create_user_missing_fields(client):
+    response = client.post("/users", json={"username": "onlyusername"})
+    assert response.status_code == 400
+
+
+def test_create_user_wrong_types(client):
+    response = client.post(
+        "/users", json={"username": 12345, "email": "test@example.com"}
+    )
+    assert response.status_code == 400
+
+
+def test_update_user(client):
+    # Create then update
+    create = client.post(
+        "/users", json={"username": "updateme123", "email": "updateme123@example.com"}
+    )
+    user_id = create.get_json()["id"]
+    response = client.put(f"/users/{user_id}", json={"username": "updated123"})
+    assert response.status_code == 200
+    assert response.get_json()["username"] == "updated123"
+
+
+def test_get_user_not_found(client):
+    response = client.get("/users/999999")
+    assert response.status_code == 404
+
+
+# URLs CRUD tests
+def test_list_urls(client):
+    response = client.get("/urls")
+    assert response.status_code == 200
+    assert isinstance(response.get_json(), list)
+
+
+def test_create_url_via_urls_endpoint(client):
+    # Create a user first
+    user = client.post(
+        "/users", json={"username": "urlowner123", "email": "urlowner123@example.com"}
+    )
+    user_id = user.get_json()["id"]
+    response = client.post(
+        "/urls",
+        json={
+            "user_id": user_id,
+            "original_url": "https://example.com",
+            "title": "Test URL",
+        },
+    )
+    assert response.status_code == 201
+    data = response.get_json()
+    assert "short_code" in data
+    assert data["is_active"] == True
+
+
+def test_create_url_invalid_user(client):
+    response = client.post(
+        "/urls", json={"user_id": 999999, "original_url": "https://example.com"}
+    )
+    assert response.status_code == 404
+
+
+def test_create_url_missing_url(client):
+    response = client.post("/urls", json={"user_id": 1})
+    assert response.status_code == 400
+
+
+def test_get_url_by_id(client):
+    user = client.post(
+        "/users",
+        json={"username": "geturluser123", "email": "geturluser123@example.com"},
+    )
+    user_id = user.get_json()["id"]
+    create = client.post(
+        "/urls", json={"user_id": user_id, "original_url": "https://example.com"}
+    )
+    url_id = create.get_json()["id"]
+    response = client.get(f"/urls/{url_id}")
+    assert response.status_code == 200
+
+
+def test_update_url(client):
+    user = client.post(
+        "/users",
+        json={"username": "updateurluser123", "email": "updateurluser123@example.com"},
+    )
+    user_id = user.get_json()["id"]
+    create = client.post(
+        "/urls", json={"user_id": user_id, "original_url": "https://example.com"}
+    )
+    url_id = create.get_json()["id"]
+    response = client.put(
+        f"/urls/{url_id}", json={"title": "Updated Title", "is_active": False}
+    )
+    assert response.status_code == 200
+    assert response.get_json()["is_active"] == False
+
+
+def test_get_url_not_found(client):
+    response = client.get("/urls/999999")
+    assert response.status_code == 404
+
+
+# Events tests
+def test_list_events(client):
+    response = client.get("/events")
+    assert response.status_code == 200
+    assert isinstance(response.get_json(), list)

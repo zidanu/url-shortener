@@ -70,9 +70,18 @@ def seed_events(filepath):
     print(f"  Done: {len(rows)} events")
 
 
+def reset_sequences():
+    print("Resetting sequences...")
+    db.execute_sql("SELECT setval('user_id_seq', (SELECT MAX(id) FROM \"user\"))")
+    db.execute_sql("SELECT setval('url_id_seq', (SELECT MAX(id) FROM url))")
+    db.execute_sql("SELECT setval('event_id_seq', (SELECT MAX(id) FROM event))")
+    print("  Done!")
+
+
 if __name__ == "__main__":
     with app.app_context():
         seed_users("users.csv")
         seed_urls("urls.csv")
         seed_events("events.csv")
+        reset_sequences()
     print("Seeding complete!")
