@@ -64,6 +64,8 @@ def create_user():
 
     try:
         existing = User.get(User.username == username)
+        existing.email = email
+        existing.save()
         return jsonify(
             {
                 "id": existing.id,
