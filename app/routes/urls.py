@@ -63,8 +63,16 @@ def bulk_import_urls():
     imported = 0
     for row in reader:
         try:
+            # Validate user exists
+            user_id = row.get("user_id")
+            if user_id:
+                try:
+                    User.get_by_id(int(user_id))
+                except User.DoesNotExist:
+                    continue  # Skip rows with invalid user_id
+
             data = {
-                "user_id": row["user_id"],
+                "user_id": user_id,
                 "short_code": row["short_code"],
                 "original_url": row["original_url"],
                 "title": row.get("title"),
@@ -72,11 +80,9 @@ def bulk_import_urls():
                 "created_at": row["created_at"],
                 "updated_at": row["updated_at"],
             }
-            rows_affected = (
-                URL.insert(id=int(row["id"]), **data)
-                .on_conflict(conflict_target=[URL.id], update=data)
-                .execute()
-            )
+            URL.insert(id=int(row["id"]), **data).on_conflict(
+                conflict_target=[URL.id], update=data
+            ).execute()
             imported += 1
         except Exception:
             continue
