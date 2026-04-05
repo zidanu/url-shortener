@@ -118,6 +118,12 @@ def create_url():
     user_id = data.get("user_id")
     title = data.get("title")
 
+    if user_id is None:
+        return jsonify({"error": "Missing user_id"}), 400
+
+    if not isinstance(user_id, int):
+        return jsonify({"error": "user_id must be an integer"}), 400
+
     if not original_url:
         return jsonify({"error": "Missing original_url"}), 400
 
@@ -129,14 +135,10 @@ def create_url():
     ):
         return jsonify({"error": "Invalid URL"}), 400
 
-    # Validate user_id type
-    if user_id is not None:
-        if not isinstance(user_id, int):
-            return jsonify({"error": "user_id must be an integer"}), 400
-        try:
-            User.get_by_id(user_id)
-        except User.DoesNotExist:
-            return jsonify({"error": "User not found"}), 404
+    try:
+        User.get_by_id(user_id)
+    except User.DoesNotExist:
+        return jsonify({"error": "User not found"}), 404
 
     short_code = generate_code()
     while URL.select().where(URL.short_code == short_code).exists():
@@ -144,7 +146,7 @@ def create_url():
 
     now = datetime.datetime.now()
     u = URL.create(
-        user_id=str(user_id) if user_id else None,
+        user_id=str(user_id),
         short_code=short_code,
         original_url=original_url,
         title=title,
