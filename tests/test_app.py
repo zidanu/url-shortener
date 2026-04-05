@@ -243,3 +243,102 @@ def test_list_events(client):
     response = client.get("/events")
     assert response.status_code == 200
     assert isinstance(response.get_json(), list)
+
+
+def test_create_event(client):
+    user = client.post(
+        "/users", json={"username": "eventuser1", "email": "eventuser1@example.com"}
+    )
+    user_id = user.get_json()["id"]
+    url = client.post(
+        "/urls", json={"user_id": user_id, "original_url": "https://example.com"}
+    )
+    url_id = url.get_json()["id"]
+    response = client.post(
+        "/events",
+        json={
+            "url_id": url_id,
+            "user_id": user_id,
+            "event_type": "click",
+            "details": {"referrer": "https://google.com"},
+        },
+    )
+    assert response.status_code == 201
+
+
+def test_create_event_invalid_url(client):
+    response = client.post("/events", json={"url_id": 999999, "event_type": "click"})
+    assert response.status_code == 404
+
+
+def test_create_event_missing_fields(client):
+    response = client.post("/events", json={"event_type": "click"})
+    assert response.status_code == 400
+
+
+def test_create_event_invalid_details(client):
+    user = client.post(
+        "/users", json={"username": "eventuser2", "email": "eventuser2@example.com"}
+    )
+    user_id = user.get_json()["id"]
+    url = client.post(
+        "/urls", json={"user_id": user_id, "original_url": "https://example.com"}
+    )
+    url_id = url.get_json()["id"]
+    response = client.post(
+        "/events",
+        json={"url_id": url_id, "event_type": "click", "details": "not a dict"},
+    )
+    assert response.status_code == 400
+
+
+def test_delete_user(client):
+    user = client.post(
+        "/users", json={"username": "deleteuser1", "email": "deleteuser1@example.com"}
+    )
+    user_id = user.get_json()["id"]
+    response = client.delete(f"/users/{user_id}")
+    assert response.status_code == 200
+
+
+def test_delete_user_not_found(client):
+    response = client.delete("/users/999999")
+    assert response.status_code == 404
+
+
+def test_delete_url(client):
+    user = client.post(
+        "/users",
+        json={"username": "deleteurluser1", "email": "deleteurluser1@example.com"},
+    )
+    user_id = user.get_json()["id"]
+    url = client.post(
+        "/urls", json={"user_id": user_id, "original_url": "https://example.com"}
+    )
+    url_id = url.get_json()["id"]
+    response = client.delete(f"/urls/{url_id}")
+    assert response.status_code == 200
+
+
+def test_delete_url_not_found(client):
+    response = client.delete("/urls/999999")
+    assert response.status_code == 404
+
+
+def test_list_urls_filter_active(client):
+    response = client.get("/urls?is_active=true")
+    assert response.status_code == 200
+
+
+def test_update_url_invalid_type(client):
+    user = client.post(
+        "/users",
+        json={"username": "updatetypeuser", "email": "updatetypeuser@example.com"},
+    )
+    user_id = user.get_json()["id"]
+    url = client.post(
+        "/urls", json={"user_id": user_id, "original_url": "https://example.com"}
+    )
+    url_id = url.get_json()["id"]
+    response = client.put(f"/urls/{url_id}", json={"is_active": "notabool"})
+    assert response.status_code == 400
