@@ -63,7 +63,7 @@ def bulk_import_urls():
     imported = 0
     for row in reader:
         try:
-            URL.get_or_create(
+            _, created = URL.get_or_create(
                 id=int(row["id"]),
                 defaults={
                     "user_id": row["user_id"],
@@ -75,7 +75,8 @@ def bulk_import_urls():
                     "updated_at": row["updated_at"],
                 },
             )
-            imported += 1
+            if created:
+                imported += 1
         except Exception:
             continue
 
