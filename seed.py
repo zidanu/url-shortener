@@ -13,8 +13,8 @@ app = create_app()
 def fresh_seed():
     print("Dropping and recreating tables...")
     with app.app_context():
-        db.drop_tables([Event, URL, User])
-        db.create_tables([User, URL, Event])
+        db.drop_tables([Event, URL, User], safe=True)
+        db.create_tables([User, URL, Event], safe=True)
         seed_users("users.csv")
         seed_urls("urls.csv")
         seed_events("events.csv")
