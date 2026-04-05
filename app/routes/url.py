@@ -89,6 +89,18 @@ def redirect_url(short_code):
         r = get_redis()
         cached = r.get(f"url:{short_code}")
         if cached:
+            # Still log the click event even when serving from cache
+            try:
+                url = URL.get(URL.short_code == short_code)
+                if not url.is_active:
+                    return jsonify({"error": "Short URL is inactive"}), 410
+                Event.create(
+                    url_id=url.id,
+                    event_type="click",
+                    details=f'{{"short_code":"{short_code}"}}',
+                )
+            except Exception:
+                pass
             return redirect(cached)
         inactive = r.get(f"inactive:{short_code}")
         if inactive:
@@ -117,7 +129,7 @@ def redirect_url(short_code):
         # Log click event
         try:
             Event.create(
-                url=url,
+                url_id=url.id,
                 event_type="click",
                 details=f'{{"short_code":"{short_code}"}}',
             )
