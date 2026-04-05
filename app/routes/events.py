@@ -46,6 +46,24 @@ def create_event():
     if not url_id or not event_type:
         return jsonify({"error": "Missing url_id or event_type"}), 400
 
+    # Validate url_id exists
+    try:
+        from app.models.url import URL
+
+        URL.get_by_id(url_id)
+    except Exception:
+        return jsonify({"error": "URL not found"}), 404
+
+    # Validate user_id exists if provided
+    user_id = data.get("user_id")
+    if user_id is not None:
+        try:
+            from app.models.user import User
+
+            User.get_by_id(user_id)
+        except Exception:
+            return jsonify({"error": "User not found"}), 404
+
     details = data.get("details")
     if details is not None and not isinstance(details, dict):
         return jsonify({"error": "Details must be a JSON object"}), 400
@@ -55,7 +73,7 @@ def create_event():
 
     e = Event.create(
         url_id=url_id,
-        user_id=data.get("user_id"),
+        user_id=user_id,
         event_type=event_type,
         timestamp=datetime.datetime.now(),
         details=details,
