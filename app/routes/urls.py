@@ -129,8 +129,10 @@ def create_url():
     ):
         return jsonify({"error": "Invalid URL"}), 400
 
-    # Hint 3: validate user exists if user_id provided
+    # Validate user_id type
     if user_id is not None:
+        if not isinstance(user_id, int):
+            return jsonify({"error": "user_id must be an integer"}), 400
         try:
             User.get_by_id(user_id)
         except User.DoesNotExist:
@@ -151,13 +153,10 @@ def create_url():
         updated_at=now,
     )
 
-    # Log created event
     try:
         Event.create(
             url_id=u.id,
-            user_id=user_id,
             event_type="created",
-            timestamp=now,
             details=f'{{"short_code":"{short_code}","original_url":"{original_url}"}}',
         )
     except Exception:
