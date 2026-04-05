@@ -2,6 +2,8 @@ from flask import Blueprint, jsonify, request
 import datetime
 import random
 import string
+import csv
+import io
 from app.models.url import URL
 from app.models.user import User
 from app.models.event import Event
@@ -166,3 +168,34 @@ def update_url(url_id):
     u.updated_at = datetime.datetime.now()
     u.save()
     return jsonify(url_to_dict(u)), 200
+
+
+@urls_bp.route("/urls/bulk", methods=["POST"])
+def bulk_import_urls():
+    if "file" not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+
+    file = request.files["file"]
+    content = file.read().decode("utf-8")
+    reader = csv.DictReader(io.StringIO(content))
+
+    imported = 0
+    for row in reader:
+        try:
+            URL.get_or_create(
+                id=int(row["id"]),
+                defaults={
+                    "user_id": row["user_id"],
+                    "short_code": row["short_code"],
+                    "original_url": row["original_url"],
+                    "title": row.get("title"),
+                    "is_active": row["is_active"].lower() == "true",
+                    "created_at": row["created_at"],
+                    "updated_at": row["updated_at"],
+                },
+            )
+            imported += 1
+        except Exception:
+            continue
+
+    return jsonify({"imported": imported}), 201
