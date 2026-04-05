@@ -49,10 +49,19 @@ def delete_url(url_id):
         return jsonify({"error": "URL not found"}), 404
 
 
-@urls_bp.route("/urls/<int:url_id>", methods=["GET"])
-def get_url(url_id):
+@urls_bp.route("/urls/<identifier>", methods=["GET"])
+def get_url(identifier):
+    # Try by ID first
     try:
+        url_id = int(identifier)
         u = URL.get_by_id(url_id)
+        return jsonify(url_to_dict(u)), 200
+    except (ValueError, URL.DoesNotExist):
+        pass
+
+    # Try by short code
+    try:
+        u = URL.get(URL.short_code == identifier)
         return jsonify(url_to_dict(u)), 200
     except URL.DoesNotExist:
         return jsonify({"error": "URL not found"}), 404
