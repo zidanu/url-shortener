@@ -173,7 +173,7 @@ def update_url(url_id):
         return jsonify({"error": "URL not found"}), 404
 
     data = request.get_json()
-    if not data:
+    if data is None:
         return jsonify({"error": "Missing request body"}), 400
 
     if "title" in data:
