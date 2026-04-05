@@ -133,6 +133,24 @@ def update_url(url_id):
         if not isinstance(data["is_active"], bool):
             return jsonify({"error": "is_active must be a boolean"}), 400
         u.is_active = data["is_active"]
+        # Invalidate Redis cache when URL is deactivated
+        try:
+            import redis
+            import os
+
+            r = redis.Redis(
+                host=os.getenv("REDIS_HOST", "localhost"),
+                port=int(os.getenv("REDIS_PORT", 6379)),
+                decode_responses=True,
+            )
+            if not u.is_active:
+                r.delete(f"url:{u.short_code}")
+                r.setex(f"inactive:{u.short_code}", 3600, "1")
+            else:
+                r.delete(f"inactive:{u.short_code}")
+                r.setex(f"url:{u.short_code}", 3600, u.original_url)
+        except Exception:
+            pass
     if "original_url" in data:
         u.original_url = data["original_url"]
 
