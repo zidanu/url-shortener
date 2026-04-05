@@ -154,14 +154,14 @@ def bulk_import_users():
     imported = 0
     for row in reader:
         try:
-            User.get_or_create(
-                id=int(row["id"]),
-                defaults={
-                    "username": row["username"],
-                    "email": row["email"],
-                    "created_at": row["created_at"],
-                },
-            )
+            data = {
+                "username": row["username"],
+                "email": row["email"],
+                "created_at": row["created_at"],
+            }
+            User.insert(id=int(row["id"]), **data).on_conflict(
+                conflict_target=[User.id], update=data
+            ).execute()
             imported += 1
         except Exception:
             continue

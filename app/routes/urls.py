@@ -63,20 +63,21 @@ def bulk_import_urls():
     imported = 0
     for row in reader:
         try:
-            _, created = URL.get_or_create(
-                id=int(row["id"]),
-                defaults={
-                    "user_id": row["user_id"],
-                    "short_code": row["short_code"],
-                    "original_url": row["original_url"],
-                    "title": row.get("title"),
-                    "is_active": row["is_active"].lower() == "true",
-                    "created_at": row["created_at"],
-                    "updated_at": row["updated_at"],
-                },
+            data = {
+                "user_id": row["user_id"],
+                "short_code": row["short_code"],
+                "original_url": row["original_url"],
+                "title": row.get("title"),
+                "is_active": row["is_active"].lower() == "true",
+                "created_at": row["created_at"],
+                "updated_at": row["updated_at"],
+            }
+            rows_affected = (
+                URL.insert(id=int(row["id"]), **data)
+                .on_conflict(conflict_target=[URL.id], update=data)
+                .execute()
             )
-            if created:
-                imported += 1
+            imported += 1
         except Exception:
             continue
 
