@@ -118,7 +118,7 @@ def redirect_url(short_code):
         try:
             Event.create(
                 url=url,
-                event_type="clicked",
+                event_type="click",
                 details=f'{{"short_code":"{short_code}"}}',
             )
             url.updated_at = datetime.datetime.now()

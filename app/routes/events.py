@@ -47,8 +47,8 @@ def create_event():
         return jsonify({"error": "Missing url_id or event_type"}), 400
 
     details = data.get("details")
-    if details and not isinstance(details, (dict, str)):
-        return jsonify({"error": "Invalid details format"}), 400
+    if details is not None and not isinstance(details, dict):
+        return jsonify({"error": "Details must be a JSON object"}), 400
 
     if isinstance(details, dict):
         details = json.dumps(details)
