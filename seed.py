@@ -13,7 +13,12 @@ app = create_app()
 def fresh_seed():
     print("Dropping and recreating tables...")
     with app.app_context():
-        db.drop_tables([Event, URL, User], safe=True)
+        db.execute_sql("DROP TABLE IF EXISTS event CASCADE")
+        db.execute_sql('DROP TABLE IF EXISTS "url" CASCADE')
+        db.execute_sql('DROP TABLE IF EXISTS "user" CASCADE')
+        db.execute_sql("DROP SEQUENCE IF EXISTS event_id_seq CASCADE")
+        db.execute_sql("DROP SEQUENCE IF EXISTS url_id_seq CASCADE")
+        db.execute_sql("DROP SEQUENCE IF EXISTS user_id_seq CASCADE")
         db.create_tables([User, URL, Event], safe=True)
         seed_users("users.csv")
         seed_urls("urls.csv")
