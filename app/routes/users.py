@@ -44,7 +44,7 @@ def get_user(user_id):
 @users_bp.route("/users", methods=["POST"])
 def create_user():
     data = request.get_json()
-    if not data:
+    if data is None:
         return jsonify({"error": "Missing request body"}), 400
 
     username = data.get("username")
@@ -119,7 +119,7 @@ def update_user(user_id):
         return jsonify({"error": "User not found"}), 404
 
     data = request.get_json()
-    if not data:
+    if data is None:
         return jsonify({"error": "Missing request body"}), 400
 
     if "username" in data:
