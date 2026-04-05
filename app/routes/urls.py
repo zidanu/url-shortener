@@ -201,6 +201,8 @@ def update_url(url_id):
         except Exception:
             pass
     if "original_url" in data:
+        if not isinstance(data["original_url"], str):
+            return jsonify({"error": "original_url must be a string"}), 400
         u.original_url = data["original_url"]
 
     u.updated_at = datetime.datetime.now()

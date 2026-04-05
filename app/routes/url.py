@@ -33,6 +33,10 @@ def shorten():
         return jsonify({"error": "Missing 'url' field"}), 400
 
     original_url = data["url"]
+
+    if not isinstance(original_url, str):
+        return jsonify({"error": "url must be a string"}), 400
+
     title = data.get("title", None)
 
     if not original_url or not original_url.strip():
