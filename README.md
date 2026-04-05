@@ -3,6 +3,10 @@
 A production-grade URL shortening service built with Flask, Peewee, and PostgreSQL.
 
 ## Architecture
+- **Nginx** — load balancer, splits traffic between two app instances
+- **App1/App2** — Flask app running on Gunicorn with 8 workers each
+- **PostgreSQL** — primary database for URL storage
+- **Redis** — caching layer for fast redirects
 
 ## Stack
 - **Flask** — web framework
@@ -53,6 +57,42 @@ curl http://localhost:5000/health
 # → {"status": "ok"}
 ```
 
+## Deploy Guide
+
+### Start (Production)
+```bash
+docker compose up -d
+```
+
+### Seed the database
+```bash
+docker compose exec app1 uv run python seed.py
+```
+
+### Verify deployment
+```bash
+curl http://localhost:8080/health
+# → {"status": "ok"}
+```
+
+### Rollback
+```bash
+# Roll back to previous image
+git checkout <previous-commit>
+docker compose up -d --build
+
+# Or just restart current version
+docker compose restart
+```
+
+### Troubleshooting
+| Problem | Cause | Fix |
+|---------|-------|-----|
+| Port 8080 in use | Another service on port 80/8080 | Change port in docker-compose.yml |
+| DB auth failed | Wrong credentials in .env | Check DATABASE_USER and DATABASE_PASSWORD |
+| App won't start | DB not ready | Wait 10s, Docker healthcheck will retry |
+| Tests fail in CI | DB table missing | Tables auto-created in test fixture |
+
 ## API Endpoints
 
 | Method | Endpoint | Description | Body |
@@ -60,6 +100,20 @@ curl http://localhost:5000/health
 | GET | `/health` | Health check | — |
 | POST | `/shorten` | Create short URL | `{"url": "https://example.com"}` |
 | GET | `/<code>` | Redirect to original URL | — |
+| GET | `/users` | List all users | — |
+| POST | `/users` | Create user | `{"username": "x", "email": "x@x.com"}` |
+| GET | `/users/<id>` | Get user by ID | — |
+| PUT | `/users/<id>` | Update user | `{"username": "new"}` |
+| DELETE | `/users/<id>` | Delete user | — |
+| POST | `/users/bulk` | Bulk import users CSV | multipart/form-data |
+| GET | `/urls` | List all URLs | — |
+| POST | `/urls` | Create URL | `{"user_id": 1, "original_url": "https://..."}` |
+| GET | `/urls/<id>` | Get URL by ID | — |
+| PUT | `/urls/<id>` | Update URL | `{"title": "x", "is_active": false}` |
+| DELETE | `/urls/<id>` | Delete URL | — |
+| POST | `/urls/bulk` | Bulk import URLs CSV | multipart/form-data |
+| GET | `/events` | List all events | — |
+| POST | `/events` | Create event | `{"url_id": 1, "event_type": "click"}` |
 
 ### Example Usage
 ```bash
@@ -143,6 +197,10 @@ curl http://localhost:5000/health
 - **Docker + restart: always** — ensures the service recovers automatically from crashes without manual intervention
 - **pytest + GitHub Actions** — every push is tested automatically, broken code never reaches main
 
+## Documentation
+
+- [Runbook](docs/runbook.md) — emergency response guide
+- [Capacity Plan](docs/capacity.md) — scaling limits and load test results
 
 ## Failure Modes
 
@@ -151,10 +209,3 @@ curl http://localhost:5000/health
 | DB connection fails | 500 error on all routes | Check PostgreSQL is running, verify `.env` credentials |
 | Short code not found | 404 JSON error | Code doesn't exist in DB — check if DB was seeded |
 | App crashes | No response | Check logs, restart with `uv run run.py` |
-
-## Technical Decisions
-
-- **Flask** — lightweight, easy to test, good for APIs
-- **Peewee** — simple ORM with minimal boilerplate
-- **PostgreSQL** — reliable, production-grade database
-- **uv** — fast dependency management, handles Python versioning
